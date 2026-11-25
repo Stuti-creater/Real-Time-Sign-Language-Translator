@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Real-Time Sign Language Translator</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<!-- Icon set (inline SVG so the page works fully offline) -->
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+  <symbol id="i-video" viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></symbol>
+  <symbol id="i-stop" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/><line x1="18" y1="9" x2="12" y2="15"/><line x1="12" y1="9" x2="18" y2="15"/></symbol>
+  <symbol id="i-space" viewBox="0 0 24 24"><path d="M3 10v6h18v-6"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
+  <symbol id="i-speaker" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></symbol>
+  <symbol id="i-save" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></symbol>
+  <symbol id="i-text" viewBox="0 0 24 24"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></symbol>
+</svg>
+
+<div class="bg-glow g1"></div>
+<div class="bg-glow g2"></div>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="logo">&#9995;</div>
+    <div>
+      <h1>Real-Time Sign Language Translator</h1>
+      <p>Hand gestures &rarr; text &rarr; speech, powered by OpenCV + MediaPipe</p>
+    </div>
+  </div>
+  <div class="status-pill" id="statusPill"><span class="dot"></span><span id="statusText">Camera off</span></div>
+</header>
+
+<main class="layout">
+
+  <!-- LEFT: instructions -->
+  <aside class="col side-left">
+    <section class="card" id="guide">
+      <h2><svg class="ic"><use href="#i-book"/></svg> How to use</h2>
+      <ol class="steps">
+        <li>Click <b>Start Camera</b> and allow the camera if asked.</li>
+        <li>Place your hand <b>30&ndash;60&nbsp;cm</b> from the camera with your <b>palm facing it</b>.</li>
+        <li>Keep the <b>whole hand</b> inside the frame, with a plain background and good light.</li>
+        <li><b>Hold a sign steady for about 1 second</b>. The progress bar fills, then the letter is typed.</li>
+        <li>To type the same letter twice, show a different sign in between.</li>
+        <li>Use <b>Space</b>, <b>Delete</b>, <b>Clear</b>, <b>Copy</b> and <b>Speak</b> to edit and share your text.</li>
+      </ol>
+    </section>
+
+    <section class="card">
+      <h2><svg class="ic"><use href="#i-info"/></svg> Tips for best results</h2>
+      <ul class="tips">
+        <li>Use one hand at a time.</li>
+        <li>Face a window or lamp so your hand is well lit.</li>
+        <li>Move slowly between signs.</li>
+        <li>If a sign shows <i>Gesture not recognized</i>, adjust finger positions to match the guide.</li>
+      </ul>
+    </section>
+  </aside>
+
+  <!-- CENTER: camera + translation -->
+  <section class="col center">
+    <div class="card camera-card">
+      <div class="video-wrap" id="videoWrap">
+        <img id="video" alt="Live webcam feed" hidden>
+        <div class="placeholder" id="placeholder">
+          <div class="ph-icon">&#128247;</div>
+          <p>Camera is off</p>
+          <small>Click <b>Start Camera</b> to begin</small>
+        </div>
+      </div>
+
+      <div id="errorBox" class="error-box" hidden>
+        <svg class="ic"><use href="#i-alert"/></svg><span id="errorText"></span>
+      </div>
+
+      <div class="cam-buttons">
+        <button class="btn primary" id="btnStart"><svg class="ic"><use href="#i-video"/></svg>Start Camera</button>
+        <button class="btn danger" id="btnStop" disabled><svg class="ic"><use href="#i-stop"/></svg>Stop Camera</button>
+      </div>
+    </div>
+
+    <div class="card gesture-card">
+      <div class="gesture-head">
+        <span class="label">Recognized gesture</span>
+        <span class="conf" id="confText">&mdash;</span>
+      </div>
+      <div class="gesture-name" id="gestureName">Camera is off</div>
+      <div class="meter"><div class="meter-fill" id="confBar"></div></div>
+      <div class="hold">
+        <div class="hold-track"><div class="hold-fill" id="holdBar"></div></div>
+        <small id="holdText">Hold a sign steady to add it to the text</small>
+      </div>
+      <small class="note">Confidence = how clearly your fingers match the rule for that sign (not a trained probability).</small>
+    </div>
+
+    <div class="card text-card">
+      <h2><svg class="ic"><use href="#i-text"/></svg> Translated text</h2>
+      <div class="textbox" id="textBox" aria-live="polite"><span class="placeholder-text">Your translation will appear here&hellip;</span></div>
+      <div class="text-buttons">
+        <button class="btn soft" id="btnSpace"><svg class="ic"><use href="#i-space"/></svg>Space</button>
+        <button class="btn soft" id="btnDelete"><svg class="ic"><use href="#i-back"/></svg>Delete</button>
+        <button class="btn soft" id="btnClear"><svg class="ic"><use href="#i-trash"/></svg>Clear</button>
+        <button class="btn soft" id="btnCopy"><svg class="ic"><use href="#i-copy"/></svg>Copy</button>
+        <button class="btn soft" id="btnSave"><svg class="ic"><use href="#i-save"/></svg>Save</button>
+        <button class="btn primary" id="btnSpeak"><svg class="ic"><use href="#i-speaker"/></svg>Speak</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- RIGHT: history + gestures -->
+  <aside class="col side-right">
+    <section class="card">
+      <div class="card-head">
+        <h2><svg class="ic"><use href="#i-clock"/></svg> History</h2>
+        <button class="link-btn" id="btnClearHistory">Clear history</button>
+      </div>
+      <ul class="history" id="historyList"><li class="empty">Nothing yet. Press Clear, Save or Speak to store a sentence.</li></ul>
+    </section>
+
+    <section class="card">
+      <h2><svg class="ic"><use href="#i-grid"/></svg> Supported gestures</h2>
+      <div class="gestures" id="gestureGrid"><p class="empty">Loading&hellip;</p></div>
+    </section>
+  </aside>
+</main>
+
+<section class="card about">
+  <h2><svg class="ic"><use href="#i-info"/></svg> About this project</h2>
+  <p>
+    This college project translates a small vocabulary of <b>static</b> hand signs (inspired by the
+    American Sign Language alphabet) into English text in real time. OpenCV reads the webcam,
+    MediaPipe finds 21 landmarks on the hand, and a <b>rule-based classifier</b> checks which fingers are
+    straight or curled to decide the sign. Flask connects the Python backend to this web page.
+  </p>
+  <p class="limits">
+    <b>Honest limitations:</b> only the gestures listed above are recognized; letters that need motion (J, Z) and
+    other signs are not supported; accuracy depends on lighting, camera angle and hand shape.
+    Anything else is shown as &ldquo;Gesture not recognized&rdquo;.
+  </p>
+  <div class="chips">
+    <span>Python</span><span>OpenCV</span><span>MediaPipe</span><span>Flask</span>
+    <span>HTML / CSS / JavaScript</span><span>pyttsx3</span><span>NumPy</span>
+  </div>
+</section>
+
+<footer>Real-Time Sign Language Translator &middot; College Project</footer>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script src="/static/script.js"></script>
+</body>
+</html>
